@@ -7,7 +7,6 @@ class Citation(BaseModel):
     source: str | None = None
     snippet: str
 
-
 class RAGResponse(BaseModel):
     query: str
     answer: str
