@@ -100,9 +100,9 @@ class RetrieverEvaluator:
         for name, group in by_source.items():
             nt = len(group)
             summary["by_source"][name] = {
-                "count":     nt,
-                "mrr":       round(sum(r["reciprocal_rank"] for r in group) / nt, 4),
-                "recall@5":  round(sum(r["recall@5"]        for r in group) / nt, 4),
+                "count": nt,
+                "mrr": round(sum(r["reciprocal_rank"] for r in group) / nt, 4),
+                "recall@5": round(sum(r["recall@5"]        for r in group) / nt, 4),
                 "recall@10": round(sum(r["recall@10"]       for r in group) / nt, 4),}
         self._save_metrics(summary, results)
         self._print_summary(summary)
