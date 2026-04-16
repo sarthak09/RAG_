@@ -18,15 +18,13 @@ Output format — you must return valid JSON and nothing else:
 
 The used_chunk_ids field must contain only the chunk IDs from the context that directly supported your answer."""
 
-
 def build_user_prompt(query: str, chunks: list[dict]) -> str:
     context_blocks = []
     for chunk in chunks:
-        block = f"[chunk_id: {chunk['chunk_id']}]\n[doc_id: {chunk['doc_id']}]\n{chunk['text']}"
+        #block = f"[chunk_id: {chunk['chunk_id']}]\n[doc_id: {chunk['doc_id']}]\n{chunk['text']}"
+        block = f"[chunk_id: {chunk['chunk_id']}]\n{chunk['text']}"
         context_blocks.append(block)
-
     context = "\n\n---\n\n".join(context_blocks)
-
     return f"""Context:
 
 {context}
@@ -35,4 +33,5 @@ def build_user_prompt(query: str, chunks: list[dict]) -> str:
 
 Question: {query}
 
-Remember to return only valid JSON with the fields: answer and used_chunk_ids."""
+"""
+#Remember to return only valid JSON with the fields: answer and used_chunk_ids."""

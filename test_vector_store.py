@@ -47,6 +47,7 @@ def test_sample_records(store: VectorStore):
         logger.info(f"    doc_id         : {meta.get('doc_id')}")
         logger.info(f"    source_file    : {meta.get('source_file')}")
         logger.info(f"    arxiv_id       : {meta.get('arxiv_id')}")
+        logger.info(f"    page_number    : {meta.get('page_number')}")
         logger.info(f"    section_title  : {meta.get('section_title') or '(none)'}")
         logger.info(f"    chunk_index    : {meta.get('chunk_index')}")
         logger.info(f"    char_count     : {meta.get('char_count')}")
@@ -88,12 +89,12 @@ def test_metadata_coverage(store: VectorStore):
     batch   = min(total, 500)
     results = store.collection.get(limit=batch, include=["metadatas"])
 
-    fields  = ["doc_id", "source_file", "arxiv_id", "embedding_model", "chunk_size_config"]
+    fields  = ["doc_id", "source_file", "arxiv_id", "embedding_model", "chunk_size_config", "page_number"]
     missing = {f: 0 for f in fields}
 
     for meta in results["metadatas"]:
         for f in fields:
-            if not meta.get(f):
+            if meta.get(f) is None:
                 missing[f] += 1
 
     for f, count in missing.items():
@@ -122,8 +123,38 @@ def test_unique_documents(store: VectorStore):
     logger.info("  PASSED\n")
 
 
+def test_page_numbers(store: VectorStore):
+    logger.info("TEST 7: Page numbers are stored and span multiple pages")
+    total   = store.count()
+    results = store.collection.get(limit=total, include=["metadatas"])
+
+    page_numbers = [m.get("page_number") for m in results["metadatas"]]
+    none_count   = sum(1 for p in page_numbers if p is None)
+    zero_count   = sum(1 for p in page_numbers if p == 0)
+    unique_pages = sorted(set(p for p in page_numbers if p is not None))
+
+    logger.info(f"  Total chunks         : {total}")
+    logger.info(f"  Missing page_number  : {none_count}")
+    logger.info(f"  Chunks on page 0     : {zero_count}")
+    logger.info(f"  Unique page numbers  : {len(unique_pages)}")
+    logger.info(f"  Page range           : {min(unique_pages)} → {max(unique_pages)}")
+
+    by_doc: dict = {}
+    for m in results["metadatas"]:
+        doc = m.get("doc_id", "unknown")
+        page = m.get("page_number", 0)
+        by_doc.setdefault(doc, set()).add(page)
+
+    logger.info("  Pages per document (sample of 5):")
+    for doc_id, pages in list(by_doc.items())[:5]:
+        logger.info(f"    {doc_id:<40} pages={sorted(pages)}")
+
+    status = "PASSED" if none_count == 0 else f"WARN — {none_count} chunks missing page_number"
+    logger.info(f"  {status}\n")
+
+
 def test_query_returns_results(store: VectorStore):
-    logger.info("TEST 7: Query returns results")
+    logger.info("TEST 8: Query returns results")
     sample       = store.collection.get(limit=1, include=["embeddings"])
     query_vector = sample["embeddings"][0]
 
@@ -135,6 +166,7 @@ def test_query_returns_results(store: VectorStore):
         logger.info(f"  Hit {i + 1}")
         logger.info(f"    chunk_id    : {hit['chunk_id']}")
         logger.info(f"    doc_id      : {hit['doc_id']}")
+        logger.info(f"    page_number : {hit.get('page_number')}")
         logger.info(f"    distance    : {hit['distance']:.6f}")
         logger.info(f"    source_file : {hit['source_file']}")
         logger.info(f"    section     : {hit['section_title'] or '(none)'}")
@@ -143,7 +175,7 @@ def test_query_returns_results(store: VectorStore):
 
 
 def test_metadata_filter(store: VectorStore):
-    logger.info("TEST 8: Metadata filtering by doc_id")
+    logger.info("TEST 9: Metadata filtering by doc_id")
     sample       = store.collection.get(limit=1, include=["metadatas", "embeddings"])
     meta         = sample["metadatas"][0]
     query_vector = sample["embeddings"][0]
@@ -158,8 +190,28 @@ def test_metadata_filter(store: VectorStore):
     logger.info(f"  {'PASSED' if all_match else 'FAILED — results contain wrong doc_ids'}\n")
 
 
+def test_page_filter(store: VectorStore):
+    logger.info("TEST 10: Metadata filtering by page_number")
+    total   = store.count()
+    results = store.collection.get(limit=total, include=["metadatas"])
+
+    all_pages   = [m.get("page_number", 0) for m in results["metadatas"]]
+    target_page = max(set(all_pages), key=all_pages.count)
+
+    sample       = store.collection.get(limit=1, include=["embeddings"])
+    query_vector = sample["embeddings"][0]
+
+    hits      = store.query(query_vector, top_k=5, where={"page_number": {"$eq": target_page}})
+    all_match = all(h.get("page_number") == target_page for h in hits)
+
+    logger.info(f"  Filtered to page_number={target_page}")
+    logger.info(f"  Results returned : {len(hits)}")
+    logger.info(f"  All match filter : {all_match}")
+    logger.info(f"  {'PASSED' if all_match else 'FAILED — results contain wrong page numbers'}\n")
+
+
 def test_char_count_filter(store: VectorStore):
-    logger.info("TEST 9: Filter by char_count >= 100")
+    logger.info("TEST 11: Filter by char_count >= 100")
     sample       = store.collection.get(limit=1, include=["embeddings"])
     query_vector = sample["embeddings"][0]
 
@@ -172,7 +224,7 @@ def test_char_count_filter(store: VectorStore):
 
 
 def test_persist_directory(store: VectorStore):
-    logger.info("TEST 10: Persist directory exists and has data")
+    logger.info("TEST 12: Persist directory exists and has data")
     p = Path(store.persist_dir)
     assert p.exists(), f"Persist dir not found: {p}"
 
@@ -199,8 +251,10 @@ def run_all_tests(store: VectorStore):
     test_vector_stats(store)
     test_metadata_coverage(store)
     test_unique_documents(store)
+    test_page_numbers(store)
     test_query_returns_results(store)
     test_metadata_filter(store)
+    test_page_filter(store)
     test_char_count_filter(store)
     test_persist_directory(store)
 

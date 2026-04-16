@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-
 @dataclass
 class Chunk:
     chunk_id: str
@@ -16,7 +15,6 @@ class Chunk:
     total_chunks_in_doc: int = 0
     is_first_chunk: bool = False
     is_last_chunk: bool = False
-
 
 @dataclass
 class EmbeddedChunk:

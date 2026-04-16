@@ -1,19 +1,8 @@
 {
-  "llm": {
-    "model_name": "gemma4:latest",
-    "base_url": "http://localhost:11434",
-    "temperature": 0.7,
-    "max_tokens": 1024
-  },
-  "embeddings": {
-      "model_name": "nomic-embed-text",
-      "base_url": "http://localhost:11434",
-      "batch_size": 32
-  },
   "ingestion": {
     "loader": "pymupdf4llm",           
     "pdf_dir": "data/raw/pdfs",
-    "max_pdfs": 100,
+    "max_pdfs": 50,
     "log_dir": "logs",
     "stats_dir": "logs"
   },
@@ -22,19 +11,31 @@
     "chunk_size": 512,
     "chunk_overlap": 100
   },
-  "vector_store": {
-      "persist_dir": "data/vector_store/first",
-      "collection_name": "rag_documents",
-      "batch_size": 100
+  "embeddings": {
+      "model_name": "nomic-embed-text",
+      "base_url": "http://localhost:11434",
+      "batch_size": 32
   },
   "retrieval": {
     "top_k": 5,
     "collection_name": "rag_chunks",
     "reranking": false
   },
+  "vector_store": {
+      "persist_dir": "data/vector_store/first",
+      "collection_name": "rag_documents",
+      "batch_size": 100
+  },
+  "llm": {
+    "model_name": "gemma4:latest",
+    "base_url": "http://localhost:11434",
+    "temperature": 0.7,
+    "max_tokens": 1024
+  },
   "evaluation": {
-    "metrics_dir": "logs/eval",
-    "qrels_path": "data/raw/metadata/pdf/arxiv/qrels.json",
-    "answers_path": "data/raw/metadata/pdf/arxiv/answers.json"
+      "meta_dir":    "data/raw/metadata/pdf/arxiv",
+      "metrics_dir": "logs/eval",
+      "qrels_path":  "data/raw/metadata/pdf/arxiv/qrels.json",
+      "answers_path": "data/raw/metadata/pdf/arxiv/answers.json"
   }
 }
