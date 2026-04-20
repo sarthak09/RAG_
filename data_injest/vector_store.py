@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from chromadb.config import Settings
 from data_injest.models import EmbeddedChunk
+from langchain_community.retrievers import BM25Retriever
 
 def setup_logger(log_dir: str) -> logging.Logger:
     Path(log_dir).mkdir(parents=True, exist_ok=True)
@@ -135,3 +136,10 @@ class VectorStore:
             self.logger.info(f"Stats saved to {filepath}")
         except Exception as e:
             self.logger.error(f"Failed to save stats: {e}")
+
+
+class SparseVectorStore(VectorStore):
+    def __init__(self, config: dict):
+        super().__init__(config)
+        self.logger.info("Initialized SparseVectorStore")
+        

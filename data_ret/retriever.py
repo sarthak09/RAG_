@@ -1,5 +1,6 @@
 from langchain_chroma import Chroma
 from data_ret.tracer import PipelineTimer
+from langchain_community.retrievers import BM25Retriever
 
 class SimpleRetriever:
     def __init__(self, config: dict, store: Chroma):
