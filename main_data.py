@@ -46,7 +46,6 @@ def run_vector_store(logger, config: dict, embedded_chunks: list) -> VectorStore
 def main():
     config = load_config("config.json")
     logger = setup_logging(config["ingestion"]["log_dir"])
-
     logger.info(f"RAG data ingestion pipeline starting")
     logger.info(f"Setup:")
     logger.info(f"Max PDFs       : {config['ingestion']['max_pdfs'] or 'all'}")
@@ -58,25 +57,19 @@ def main():
     logger.info(f"Vector store   : {config['vector_store']['persist_dir']}")
     logger.info(f"Collection     : {config['vector_store']['collection_name']}")
     logger.info(f"Batch size     : {config['vector_store']['batch_size']}")
-
     logger.info(f"── Stage 1: Ingestion ──")
     documents = run_ingestion(config)
     logger.info(f"Ingestion done : {len(documents)} documents")
-
     logger.info("── Stage 2: Splitting ──")
     chunks = run_splitting(config, documents)
     logger.info(f"Splitting done : {len(chunks)} chunks")
-
     logger.info("── Stage 3: Embedding ──")
     embedder, embedded_chunks = run_embedding(config, chunks)
     logger.info(f"Embedding done : {len(embedded_chunks)}")
-    
     logger.info("── Stage 4: Vector Store ──")
     store = run_vector_store(logger, config, embedded_chunks)
     logger.info(f"Vector store done : {store.count()}")
-
     logger.info("Pipeline complete")
-
     logger.info(f"Summary:")
     logger.info(f"  Documents    : {len(documents)}")
     logger.info(f"  Chunks       : {len(chunks)}")

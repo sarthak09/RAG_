@@ -33,6 +33,7 @@
     "max_tokens": 1024
   },
   "evaluation": {
+      "eval_model": "gemma4:latest",
       "meta_dir":    "data/raw/metadata/pdf/arxiv",
       "metrics_dir": "logs/eval",
       "qrels_path":  "data/raw/metadata/pdf/arxiv/qrels.json",

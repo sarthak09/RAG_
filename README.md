@@ -143,3 +143,35 @@ python app/core/ingestion/download.py
 - Chunking strategy — fixed size vs semantic vs section-based
 - Vector store setup
 - Retrieval pipeline with evaluation against qrels
+
+
+
+
+
+
+
+
+
+
+
+Benchmark:
+run
+"""
+benchmark.py — RAG Pipeline Latency Profiler
+=============================================
+Measures each stage of the pipeline independently so you know
+exactly where time is being spent BEFORE making any optimisation.
+
+Stages measured:
+  1. Store load          — loading ChromaDB + embedding model into memory
+  2. Retrieval           — vector search time
+  3. Prompt build        — assembling system + user prompt
+  4. LLM TTFT            — time from request start → first token received
+  5. LLM total           — full generation time (all tokens)
+  6. JSON parse          — extracting structured output from raw LLM response
+  7. End-to-end          — wall clock from query in → final result out
+
+Usage:
+    python benchmark.py
+    python benchmark.py --runs 5 --queries "What is RAG?" "How does attention work?"
+"""
