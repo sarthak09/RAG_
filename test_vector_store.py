@@ -91,10 +91,15 @@ def test_metadata_coverage(store: VectorStore):
 
 def test_unique_documents(store: VectorStore):
     logger.info("TEST 6: Unique documents in store")
-    total   = store.count()
-    results = store.collection.get(limit=total, include=["metadatas"])
-    doc_ids     = [m["doc_id"] for m in results["metadatas"]]
-    chunks_per  = Counter(doc_ids)
+    total = store.count()
+    batch_size = 5000
+    all_doc_ids = []
+    offset = 0
+    while offset < total:
+        results = store.collection.get(limit=batch_size, offset=offset, include=["metadatas"])
+        all_doc_ids.extend(m["doc_id"] for m in results["metadatas"])
+        offset += batch_size
+    chunks_per = Counter(all_doc_ids)
     unique_docs = len(chunks_per)
     logger.info(f"  Unique documents : {unique_docs}")
     logger.info(f"  Total chunks     : {total}")
@@ -108,27 +113,76 @@ def test_unique_documents(store: VectorStore):
 
 def test_page_numbers(store: VectorStore):
     logger.info("TEST 7: Page numbers are stored and span multiple pages")
-    total= store.count()
-    results= store.collection.get(limit=total, include=["metadatas"])
-    page_numbers = [m.get("page_number") for m in results["metadatas"]]
+    total = store.count()
+    batch_size = 5000
+    all_metadatas = []
+    offset = 0
+    while offset < total:
+        results = store.collection.get(limit=batch_size, offset=offset, include=["metadatas"])
+        all_metadatas.extend(results["metadatas"])
+        offset += batch_size
+
+    page_numbers = [m.get("page_number") for m in all_metadatas]
     none_count   = sum(1 for p in page_numbers if p is None)
     zero_count   = sum(1 for p in page_numbers if p == 0)
     unique_pages = sorted(set(p for p in page_numbers if p is not None))
+
     logger.info(f"  Total chunks         : {total}")
     logger.info(f"  Missing page_number  : {none_count}")
     logger.info(f"  Chunks on page 0     : {zero_count}")
     logger.info(f"  Unique page numbers  : {len(unique_pages)}")
     logger.info(f"  Page range           : {min(unique_pages)} → {max(unique_pages)}")
+
     by_doc: dict = {}
-    for m in results["metadatas"]:
+    for m in all_metadatas:
         doc = m.get("doc_id", "unknown")
         page = m.get("page_number", 0)
         by_doc.setdefault(doc, set()).add(page)
+
     logger.info("  Pages per document (sample of 5):")
     for doc_id, pages in list(by_doc.items())[:5]:
         logger.info(f"    {doc_id:<40} pages={sorted(pages)}")
+
     status = "PASSED" if none_count == 0 else f"WARN — {none_count} chunks missing page_number"
     logger.info(f"  {status}\n")
+
+
+def test_page_filter(store: VectorStore):
+    logger.info("TEST 10: Metadata filtering by page_number")
+    total = store.count()
+    batch_size = 5000
+    all_pages = []
+    offset = 0
+    while offset < total:
+        results = store.collection.get(limit=batch_size, offset=offset, include=["metadatas"])
+        all_pages.extend(m.get("page_number", 0) for m in results["metadatas"])
+        offset += batch_size
+
+    target_page  = max(set(all_pages), key=all_pages.count)
+    sample       = store.collection.get(limit=1, include=["embeddings"])
+    query_vector = sample["embeddings"][0]
+
+    hits      = store.query(query_vector, top_k=5, where={"page_number": {"$eq": target_page}})
+    all_match = all(h.get("page_number") == target_page for h in hits)
+
+    logger.info(f"  Filtered to page_number={target_page}")
+    logger.info(f"  Results returned : {len(hits)}")
+    logger.info(f"  All match filter : {all_match}")
+    logger.info(f"  {'PASSED' if all_match else 'FAILED — results contain wrong page numbers'}\n")
+
+
+def test_char_count_filter(store: VectorStore):
+    logger.info("TEST 11: Filter by char_count >= 100")
+    sample       = store.collection.get(limit=1, include=["embeddings"])
+    query_vector = sample["embeddings"][0]
+
+    hits      = store.query(query_vector, top_k=5, where={"char_count": {"$gte": 100}})
+    all_large = all(h["char_count"] >= 100 for h in hits)
+
+    logger.info(f"  Results returned : {len(hits)}")
+    logger.info(f"  All >= 100 chars : {all_large}")
+    logger.info(f"  {'PASSED' if all_large else 'FAILED'}\n")
+
 
 def test_query_returns_results(store: VectorStore):
     logger.info("TEST 8: Query returns results")
@@ -160,32 +214,6 @@ def test_metadata_filter(store: VectorStore):
     logger.info(f"  Results returned : {len(hits)}")
     logger.info(f"  All match filter : {all_match}")
     logger.info(f"  {'PASSED' if all_match else 'FAILED — results contain wrong doc_ids'}\n")
-
-
-def test_page_filter(store: VectorStore):
-    logger.info("TEST 10: Metadata filtering by page_number")
-    total= store.count()
-    results= store.collection.get(limit=total, include=["metadatas"])
-    all_pages= [m.get("page_number", 0) for m in results["metadatas"]]
-    target_page= max(set(all_pages), key=all_pages.count)
-    sample= store.collection.get(limit=1, include=["embeddings"])
-    query_vector= sample["embeddings"][0]
-    hits= store.query(query_vector, top_k=5, where={"page_number": {"$eq": target_page}})
-    all_match= all(h.get("page_number") == target_page for h in hits)
-    logger.info(f"  Filtered to page_number={target_page}")
-    logger.info(f"  Results returned : {len(hits)}")
-    logger.info(f"  All match filter : {all_match}")
-    logger.info(f"  {'PASSED' if all_match else 'FAILED — results contain wrong page numbers'}\n")
-
-def test_char_count_filter(store: VectorStore):
-    logger.info("TEST 11: Filter by char_count >= 100")
-    sample= store.collection.get(limit=1, include=["embeddings"])
-    query_vector= sample["embeddings"][0]
-    hits= store.query(query_vector, top_k=5, where={"char_count": {"$gte": 100}})
-    all_large= all(h["char_count"] >= 100 for h in hits)
-    logger.info(f"  Results returned : {len(hits)}")
-    logger.info(f"  All >= 100 chars : {all_large}")
-    logger.info(f"  {'PASSED' if all_large else 'FAILED'}\n")
 
 def test_persist_directory(store: VectorStore):
     logger.info("TEST 12: Persist directory exists and has data")

@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from data_injest.loader import PDFLoader
 from data_injest.splitter import TextSplitter
 from data_injest.embedder import Embedder
-from data_injest.vector_store import VectorStore
+from data_injest.vector_store import SparseVectorStore, VectorStore
 
 def setup_logging(log_dir: str) -> logging.Logger:
     Path(log_dir).mkdir(parents=True, exist_ok=True)
@@ -69,6 +69,14 @@ def main():
     logger.info("── Stage 4: Vector Store ──")
     store = run_vector_store(logger, config, embedded_chunks)
     logger.info(f"Vector store done : {store.count()}")
+    if config["retrieval"]["use_hybrid"]:
+        logger.info("── Stage 5: Sparse Index (BM25) ──")
+        sparse_store = SparseVectorStore(config)
+        if sparse_store.is_populated():
+            logger.info("BM25 index already exists — skipping")
+        else:
+            sparse_store.build_and_save(embedded_chunks)
+            logger.info("BM25 index saved")
     logger.info("Pipeline complete")
     logger.info(f"Summary:")
     logger.info(f"  Documents    : {len(documents)}")

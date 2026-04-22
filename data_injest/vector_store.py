@@ -1,12 +1,14 @@
 import json
 import logging
 import time
+import pickle
 import chromadb
 from datetime import datetime
 from pathlib import Path
 from chromadb.config import Settings
 from data_injest.models import EmbeddedChunk
 from langchain_community.retrievers import BM25Retriever
+from langchain_core.documents import Document
 
 def setup_logger(log_dir: str) -> logging.Logger:
     Path(log_dir).mkdir(parents=True, exist_ok=True)
@@ -101,8 +103,7 @@ class VectorStore:
                     "chunk_id": results["ids"][0][i],
                     "text": results["documents"][0][i],
                     "distance": results["distances"][0][i],
-                    **results["metadatas"][0][i]
-                }
+                    **results["metadatas"][0][i]}
                 for i in range(len(results["ids"][0]))
             ]
         except Exception as e:
@@ -137,9 +138,42 @@ class VectorStore:
         except Exception as e:
             self.logger.error(f"Failed to save stats: {e}")
 
-
-class SparseVectorStore(VectorStore):
+class SparseVectorStore:
     def __init__(self, config: dict):
-        super().__init__(config)
-        self.logger.info("Initialized SparseVectorStore")
-        
+        self.persist_dir = config["vector_store"]["persist_dir"]
+        self.bm25_index_path = Path(config["retrieval"]["bm25_index_path"])
+        self.log_dir = config["ingestion"]["log_dir"]
+        self.logger = setup_logger(self.log_dir)
+        self.bm25_index_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def is_populated(self) -> bool:
+        return self.bm25_index_path.exists()
+
+    def build_and_save(self, embedded_chunks: list[EmbeddedChunk]) -> None:
+        if not embedded_chunks:
+            self.logger.warning("No chunks provided to build BM25 index")
+            return
+        try:
+            start = time.time()
+            docs = [
+                Document(
+                    page_content=c.text,
+                    metadata={
+                        "chunk_id": c.chunk_id,
+                        "doc_id": c.doc_id,
+                        "arxiv_id": c.arxiv_id,
+                        "source_file": c.source_file,
+                        "page_number": c.page_number,
+                        "section_title": c.section_title,
+                        "chunk_index": c.chunk_index}
+                )
+                for c in embedded_chunks
+            ]
+            bm25 = BM25Retriever.from_documents(docs)
+            with open(self.bm25_index_path, "wb") as f:
+                pickle.dump(bm25, f)
+            elapsed = round(time.time() - start, 2)
+            self.logger.info(f"BM25 index saved | docs={len(docs)} | path={self.bm25_index_path} | time={elapsed}s")
+        except Exception as e:
+            self.logger.error(f"Failed to build BM25 index: {e}")
+            raise

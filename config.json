@@ -2,7 +2,7 @@
   "ingestion": {
     "loader": "pymupdf4llm",           
     "pdf_dir": "data/raw/pdfs",
-    "max_pdfs": 50,
+    "max_pdfs": 1000,
     "log_dir": "logs",
     "stats_dir": "logs"
   },
@@ -19,7 +19,12 @@
   "retrieval": {
     "top_k": 5,
     "collection_name": "rag_chunks",
-    "reranking": false
+    "use_hybrid": false,
+    "bm25_index_path": "data/vector_store/bm25_index.pkl",
+    "use_rerank": false,
+    "rerank_model": "BAAI/bge-reranker-v2-m3",
+    "rerank_top_k": 5,
+    "candidate_k": 20
   },
   "vector_store": {
       "persist_dir": "data/vector_store/first",
@@ -33,6 +38,7 @@
     "max_tokens": 1024
   },
   "evaluation": {
+      "allowed_sources": ["text"],
       "eval_model": "gemma4:latest",
       "meta_dir":    "data/raw/metadata/pdf/arxiv",
       "metrics_dir": "logs/eval",

@@ -8,8 +8,8 @@ from pathlib import Path
 from collections import defaultdict
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dotenv import load_dotenv
-from data_ret.dataloader import VectorStoreLoader
-from data_ret.retriever import SimpleRetriever
+from data_ret.dataloader import VectorStoreLoader, BM25Loader
+from data_ret.retriever import SimpleRetriever, HybridRetriever
 from data_ret.llm_fast import LLMGenerator         
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -19,20 +19,15 @@ def was_correct_doc_found(result: dict) -> bool:
     return any(result[f"recall@{k}"] == 1 for k in [1, 3, 5, 10])
 
 class RetrieverEvaluator:
-    def __init__(self, config: dict, ollama_base_url: str):
+    def __init__(self, config: dict, retriever, ollama_base_url: str):
         self.config = config
+        self.retriever = retriever
         self.k_values = [1, 3, 5, 10]
         self.metrics_dir = Path(config["evaluation"]["metrics_dir"])
         self.metrics_dir.mkdir(parents=True, exist_ok=True)
-        embed_model = config["embeddings"]["model_name"]
-        self.store = VectorStoreLoader(config=config, ollama_base_url=ollama_base_url, embed_model=embed_model,).load()
-        self.retriever = SimpleRetriever(config=config, store=self.store)
         self.generator = LLMGenerator(config=config, ollama_base_url=ollama_base_url)
         self._last_results: list[dict] = []
-        logger.info(
-            f"RetrieverEvaluator ready | "
-            f"embed={embed_model} | "
-            f"llm={config['llm']['model_name']}")
+        logger.info(f"RetrieverEvaluator ready | llm={config['llm']['model_name']}")
 
     def evaluate(self, eval_dataset: list[dict]) -> dict:
         top_k = max(self.k_values)
@@ -104,7 +99,7 @@ class RetrieverEvaluator:
         for i, r in enumerate(self._last_results):
             qid = r["query_id"]
             ground_truth = gt_lookup.get(qid, {})
-            chunks, _ = self.retriever.retrieve(r["query"], top_k=max(self.k_values))
+            chunks, _ = self.retriever.retrieve(r["query"])
             retrieved_context = [
                 {
                     "rank":         rank,
@@ -212,6 +207,14 @@ if __name__ == "__main__":
     ollama_url   = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     eval_path    = Path(config["evaluation"]["metrics_dir"]) / "eval_dataset.json"
     eval_dataset = json.loads(eval_path.read_text())
-    evaluator = RetrieverEvaluator(config=config, ollama_base_url=ollama_url)
+    store = VectorStoreLoader(config=config, ollama_base_url=ollama_url, embed_model=config["embeddings"]["model_name"]).load()
+
+    if config["retrieval"]["use_hybrid"]:
+        bm25 = BM25Loader(config).load()
+        retriever = HybridRetriever(config=config, store=store, bm25_retriever=bm25)
+    else:
+        retriever = SimpleRetriever(config=config, store=store)
+
+    evaluator = RetrieverEvaluator(config=config, retriever=retriever, ollama_base_url=ollama_url)
     evaluator.evaluate(eval_dataset)
     evaluator.save_detailed_results(eval_dataset)

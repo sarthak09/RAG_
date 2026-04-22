@@ -1,8 +1,11 @@
-### `eval_prep.py`
-Joins the three metadata files (`queries.json`, `qrels.json`, `answers.json`) using the shared UUID key, filters down to only queries whose relevant document is actually indexed in ChromaDB, and saves the result as both a CSV and JSON file. This runs once and produces `eval_dataset.json` which everything else reads from.
+# Day 7 — Retrieval & Generation Pipeline
 
-### `evaluator.py`
-Loads `eval_dataset.json`, runs retrieval for every query, computes Recall@1/3/5/10 and MRR, then calls the LLM to generate an answer using the retrieved chunks. Saves four output files — two summary files (retrieval metrics) and two detailed files (query + ground truth + LLM answer + retrieved context + per-query metrics).
+**Date:** April 17, 2026
+
+---
+## What I was trying to do
+
+Focus on the RAG evaluation methods and preparation of the dataset.
 
 ---
 
@@ -18,7 +21,7 @@ The three metadata files share a single UUID key per query. Once I understood th
 The UUID is the join key across all three. `qrels.json` has exactly one relevant `doc_id` per query — simpler than the standard TREC format which can have multiple relevant documents.
 
 ### About the doc_id matching problem
-Before writing a single line of evaluation code, I checked whether the doc_ids in `qrels.json` matched what was stored in ChromaDB. They did — both use the full arxiv versioned filename (e.g. `2401.01872v2`). This is the #1 silent failure mode in evaluation — if the IDs don't match you get Recall@k = 0 for every query and have no idea why.
+Before writing a single line of evaluation code, I checked whether the doc_ids in `qrels.json` matched what was stored in ChromaDB. They did both use the full arxiv versioned filename (e.g. `2401.01872v2`). This is the #1 silent failure mode in evaluation — if the IDs don't match you get Recall@k = 0 for every query and have no idea why.
 
 ### About Recall@k vs MRR
 These measure different things and you need both:
@@ -28,7 +31,7 @@ These measure different things and you need both:
 You could have Recall@5 = 0.99 but MRR = 0.4, which would mean the system almost always finds the right document but usually buries it at rank 4 or 5. That's a reranking problem, not a retrieval problem. The distinction matters when deciding what to fix next.
 
 ### About corpus size and evaluation integrity
-My first evaluation run used only 100 PDFs and returned MRR = 0.94, Recall@5 = 0.99. These numbers look impressive but they're misleading — with only 100 documents in the store, the retriever is picking from a tiny pool. The real test is at 1,000 PDFs where the retriever has to distinguish the correct paper from 999 others, many of which are thematically similar arXiv papers. Baseline numbers only mean something when the corpus is at full scale.
+My first evaluation run used only 100 PDFs and returned MRR = 0.94, Recall@5 = 0.99. These numbers look impressive but they're misleading with only 100 documents in the store, the retriever is picking from a tiny pool. The real test is at 1,000 PDFs where the retriever has to distinguish the correct paper from 999 others, many of which are thematically similar arXiv papers. Baseline numbers only mean something when the corpus is at full scale.
 
 ### About the source breakdown
 Even with the inflated small-corpus numbers, one split in the results is genuinely informative:
@@ -90,5 +93,3 @@ After running both scripts, `logs/eval/` contains:
 | `detailed_results_*.csv` | Same flattened — open in spreadsheet |
 
 ---
-
-## Current numbers (100 PDFs — not final)

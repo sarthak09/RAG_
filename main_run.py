@@ -3,8 +3,8 @@ import json
 import time
 from datetime import datetime
 from dotenv import load_dotenv
-from data_ret.dataloader import VectorStoreLoader
-from data_ret.retriever import SimpleRetriever
+from data_ret.retriever import SimpleRetriever, HybridRetriever
+from data_ret.dataloader import VectorStoreLoader, BM25Loader
 # from data_ret.llm_fast import LLMGenerator
 from data_ret.llm import LLMGenerator
 from data_ret.tracer import PipelineTimer, LatencyLogger
@@ -63,7 +63,12 @@ def main():
     embed_model = config["embeddings"]["model_name"]
 
     store = VectorStoreLoader(config=config, ollama_base_url=ollama_base_url, embed_model=embed_model).load()
-    retriever = SimpleRetriever(config=config, store=store)
+    if config["retrieval"]["use_hybrid"]:
+        print("Using Hybrid Retriever (Dense + BM25)")
+        bm25 = BM25Loader(config).load()
+        retriever = HybridRetriever(config=config, store=store, bm25_retriever=bm25)
+    else:
+        retriever = SimpleRetriever(config=config, store=store)
     generator = LLMGenerator(config=config, ollama_base_url=ollama_base_url)
     latency_logger = LatencyLogger(log_dir=log_dir)
 

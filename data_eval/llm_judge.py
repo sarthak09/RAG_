@@ -101,11 +101,15 @@ def main(filename: str):
     config_path = parent_dir / "config.json"
     with open(config_path) as f:
         config = json.load(f)
-    grader_llm = ChatOllama(model=config["llm"]["model_name"]).with_structured_output(CorrectnessGrade, method="json_schema", strict=True)
-    relevance_llm = ChatOllama(model=config["llm"]["model_name"]).with_structured_output(RelevanceGrade, method="json_schema", strict=True)
-    grounded_llm = ChatOllama(model=config["llm"]["model_name"]).with_structured_output(GroundedGrade, method="json_schema", strict=True)
-    retrieval_relevance_llm = ChatOllama(model=config["llm"]["model_name"]).with_structured_output(RetrievalRelevanceGrade, method="json_schema", strict=True)
-    csv_path = Path(__file__).resolve().parent / "llm_judge_results.csv"
+    grader_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(CorrectnessGrade, method="json_schema", strict=True)
+    relevance_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(RelevanceGrade, method="json_schema", strict=True)
+    grounded_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(GroundedGrade, method="json_schema", strict=True)
+    retrieval_relevance_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(RetrievalRelevanceGrade, method="json_schema", strict=True)
+    # grader_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(CorrectnessGrade, method="json_schema", strict=True)
+    # relevance_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(RelevanceGrade, method="json_schema", strict=True)
+    # grounded_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(GroundedGrade, method="json_schema", strict=True)
+    # retrieval_relevance_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(RetrievalRelevanceGrade, method="json_schema", strict=True)
+    csv_path = Path(__file__).resolve().parent / "llm_judge_results_hyb_norerank.csv"
     csv_columns = [
         "query_id", "query", "ground_truth_answer", "llm_answer",
         "correctness", "correctness_explanation",
@@ -116,7 +120,7 @@ def main(filename: str):
     with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
         writer.writeheader()
-        for i, item in enumerate(data_file[:5]):
+        for i, item in enumerate(data_file[:100]):
             print(f"\n=== Item {i+1}: {item['query'][:80]} ===")
             answers = f"QUESTION: {item['query']}\nGROUND TRUTH ANSWER: {item['ground_truth_answer']}\nSTUDENT ANSWER: {item['llm_answer']}"
             correctness_grade = grader_llm.invoke([{"role": "system", "content": correctness_instructions}, {"role": "user", "content": answers}])
@@ -149,5 +153,5 @@ def main(filename: str):
     print(f"\nResults saved to: {csv_path}")
 
 if __name__ == "__main__":
-    filename = "/home/sarthak/workspace/gen_ai/RAG/project/projects/professional_projects/project1/backend/logs/eval/detailed_results_20260420_014246.json"
+    filename = "/home/sarthak/workspace/gen_ai/RAG/project/projects/professional_projects/project1/backend/logs/eval/detailed_results_20260421_002351_hyb_norerank.json"
     main(filename)

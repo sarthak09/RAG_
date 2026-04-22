@@ -10,12 +10,20 @@ def prepare_eval_dataset(config: dict) -> list[dict]:
     queries = json.loads((meta_dir / "queries.json").read_text())
     qrels = json.loads((meta_dir / "qrels.json").read_text())
     answers = json.loads((meta_dir / "answers.json").read_text())
+    allowed = set(config["evaluation"].get("allowed_sources", ["text"]))
     client = chromadb.PersistentClient(
         path=config["vector_store"]["persist_dir"],
         settings=Settings(anonymized_telemetry=False))
     collection = client.get_collection(config["vector_store"]["collection_name"])
-    all_meta   = collection.get(include=["metadatas"])
-    indexed_docs = set(m["doc_id"] for m in all_meta["metadatas"])
+    total = collection.count()
+    batch_size = 5000
+    all_metadatas = []
+    offset = 0
+    while offset < total:
+        batch = collection.get(limit=batch_size, offset=offset, include=["metadatas"])
+        all_metadatas.extend(batch["metadatas"])
+        offset += batch_size
+    indexed_docs = set(m["doc_id"] for m in all_metadatas)
     rows = []
     skipped = 0
     for uuid, qrel in qrels.items():
@@ -25,6 +33,9 @@ def prepare_eval_dataset(config: dict) -> list[dict]:
             skipped += 1
             continue
         if uuid not in queries:
+            skipped += 1
+            continue
+        if queries[uuid]["source"] not in allowed:
             skipped += 1
             continue
         rows.append({
