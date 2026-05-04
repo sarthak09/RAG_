@@ -41,6 +41,8 @@ from ragas import evaluate, RunConfig
 from ragas.llms import LangchainLLMWrapper
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from langchain_ollama import ChatOllama, OllamaEmbeddings
+import re
+import unicodedata
 
 load_dotenv()
 
@@ -65,7 +67,8 @@ def build_ragas_llm(config: dict, ollama_base_url: str):
         seed=42,                
         num_predict=1024,       
         num_ctx=config["llm"].get("num_ctx", 4096),
-        reasoning=False,       
+        reasoning=False,  
+        format="json",
         keep_alive="60m",      
     )
     embeddings = OllamaEmbeddings(
@@ -77,12 +80,16 @@ def build_ragas_llm(config: dict, ollama_base_url: str):
 def build_dataset(data: List[Dict[str, Any]], limit: int = 5) -> Dataset:
     rows = []
     for item in data[:limit]:
-        contexts = [doc["text_preview"] for doc in item["retrieved_context"]]
+        contexts = [
+            sanitize_for_ragas(doc.get("text_preview", ""))
+            for doc in item.get("retrieved_context", [])
+        ]
         rows.append({
-            "user_input": item["query"],
-            "response": item["llm_answer"],
+            "user_input": sanitize_for_ragas(item.get("query", "")),
+            "response": sanitize_for_ragas(item.get("llm_answer", "")),
             "retrieved_contexts": contexts,
-            "reference": item["ground_truth_answer"]})
+            "reference": sanitize_for_ragas(item.get("ground_truth_answer", "")),
+        })
     return Dataset.from_pandas(pd.DataFrame(rows))
 
 def build_metrics(ragas_llm, ragas_embeddings) -> list:
@@ -92,6 +99,56 @@ def build_metrics(ragas_llm, ragas_embeddings) -> list:
         if hasattr(metric, "embeddings"):
             metric.embeddings = ragas_embeddings
     return metrics
+
+def sanitize_for_ragas(text: str) -> str:
+    if text is None:
+        return ""
+    text = str(text)
+    text = unicodedata.normalize("NFKC", text)
+    text = re.sub(r"\$\$[\s\S]*?\$\$", " math_expression ", text)
+    text = re.sub(r"\$[^$]*\$", " math_expression ", text)
+    text = re.sub(r"\\\([\s\S]*?\\\)", " math_expression ", text)
+    text = re.sub(r"\\\[[\s\S]*?\\\]", " math_expression ", text)
+    greek_math_map = {
+        "α": " alpha ",
+        "β": " beta ",
+        "γ": " gamma ",
+        "δ": " delta ",
+        "λ": " lambda ",
+        "μ": " mu ",
+        "σ": " sigma ",
+        "θ": " theta ",
+        "κ": " kappa ",
+        "ω": " omega ",
+        "Ω": " Omega ",
+        "Φ": " Phi ",
+        "ϕ": " phi ",
+        "φ": " phi ",
+        "ζ": " zeta ",
+        "∂": " partial ",
+        "∇": " nabla ",
+        "≤": " less than or equal ",
+        "≥": " greater than or equal ",
+        "≠": " not equal ",
+        "≈": " approximately ",
+        "∞": " infinity ",
+        "×": " times ",
+        "÷": " divided by ",
+        "−": " minus ",
+    }
+    for symbol, replacement in greek_math_map.items():
+        text = text.replace(symbol, replacement)
+    text = re.sub(r"\\[a-zA-Z]+", " ", text)
+    text = text.replace("\\", " ")
+    text = text.replace("/", " ")
+    text = text.replace('"', "'")
+    text = text.replace("“", "'").replace("”", "'")
+    text = text.replace("‘", "'").replace("’", "'")
+    text = text.replace("{", " ").replace("}", " ")
+    text = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 def main(filename: str, limit: int = 5):
     eval_data_path = Path(filename)
@@ -114,8 +171,8 @@ def main(filename: str, limit: int = 5):
         dataset,
         metrics=metrics,
         run_config=RunConfig(
-            timeout=180,     
-            max_retries=2,     
+            timeout=300,     
+            max_retries=5,     
             max_workers=1))
     elapsed_s = round(time.perf_counter() - t_eval_start, 1)
     results_df = result.to_pandas()
@@ -163,5 +220,5 @@ def main(filename: str, limit: int = 5):
     print()
 
 if __name__ == "__main__":
-    filename = "/home/sarthak/workspace/gen_ai/RAG/project/projects/professional_projects/project1/backend/logs/eval/detailed_results_20260420_014246.json"
-    main(filename, limit=3)
+    filename = "logs/eval/detailed_results_20260423_183352_hyb_rerank.json"
+    main(filename, limit=100)

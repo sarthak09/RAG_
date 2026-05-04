@@ -87,7 +87,6 @@ A relevance value of False means that the FACTS are completely unrelated to the 
 Explain your reasoning in a step-by-step manner to ensure your reasoning and conclusion are correct. 
 Avoid simply stating the correct answer at the outset."""
 
-
 def load_config(config_path: Path) -> List[Dict[str, Any]]:
     print(f"Loading config from: {config_path}")
     if not config_path.exists():
@@ -101,15 +100,15 @@ def main(filename: str):
     config_path = parent_dir / "config.json"
     with open(config_path) as f:
         config = json.load(f)
-    grader_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(CorrectnessGrade, method="json_schema", strict=True)
-    relevance_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(RelevanceGrade, method="json_schema", strict=True)
-    grounded_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(GroundedGrade, method="json_schema", strict=True)
-    retrieval_relevance_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(RetrievalRelevanceGrade, method="json_schema", strict=True)
-    # grader_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(CorrectnessGrade, method="json_schema", strict=True)
-    # relevance_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(RelevanceGrade, method="json_schema", strict=True)
-    # grounded_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(GroundedGrade, method="json_schema", strict=True)
-    # retrieval_relevance_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(RetrievalRelevanceGrade, method="json_schema", strict=True)
-    csv_path = Path(__file__).resolve().parent / "llm_judge_results_hyb_norerank.csv"
+    # grader_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(CorrectnessGrade, method="json_schema", strict=True)
+    # relevance_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(RelevanceGrade, method="json_schema", strict=True)
+    # grounded_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(GroundedGrade, method="json_schema", strict=True)
+    # retrieval_relevance_llm = ChatOllama(model=config["llm"]["model_name"], temperature=0).with_structured_output(RetrievalRelevanceGrade, method="json_schema", strict=True)
+    grader_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(CorrectnessGrade, method="json_schema", strict=True)
+    relevance_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(RelevanceGrade, method="json_schema", strict=True)
+    grounded_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(GroundedGrade, method="json_schema", strict=True)
+    retrieval_relevance_llm = ChatOllama(model="llama3.2", temperature=0).with_structured_output(RetrievalRelevanceGrade, method="json_schema", strict=True)
+    csv_path = Path(__file__).resolve().parent / "llm_judge_results.csv"
     csv_columns = [
         "query_id", "query", "ground_truth_answer", "llm_answer",
         "correctness", "correctness_explanation",
@@ -121,37 +120,57 @@ def main(filename: str):
         writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
         writer.writeheader()
         for i, item in enumerate(data_file[:100]):
+            if not item.get("llm_generation_success", True):
+                reason = item.get("llm_error", "unknown error")
+                print(f"  Skipping — generation failed: {reason}")
+                writer.writerow({
+                    "query_id":                        item.get("query_id", ""),
+                    "query":                           item["query"],
+                    "ground_truth_answer":             item["ground_truth_answer"],
+                    "llm_answer":                      item["llm_answer"],
+                    "correctness":                     -1,
+                    "correctness_explanation":         f"skipped: {reason}",
+                    "answer_relevance":                -1,
+                    "answer_relevance_explanation":    f"skipped: {reason}",
+                    "groundedness":                    -1,
+                    "groundedness_explanation":        f"skipped: {reason}",
+                    "retrieval_relevance":             -1,
+                    "retrieval_relevance_explanation": f"skipped: {reason}",
+                })
+                csvfile.flush()
+                continue
+
             print(f"\n=== Item {i+1}: {item['query'][:80]} ===")
             answers = f"QUESTION: {item['query']}\nGROUND TRUTH ANSWER: {item['ground_truth_answer']}\nSTUDENT ANSWER: {item['llm_answer']}"
             correctness_grade = grader_llm.invoke([{"role": "system", "content": correctness_instructions}, {"role": "user", "content": answers}])
-            print(f"Correctness:          {correctness_grade['correct']}")
+            print(f"Correctness:          {correctness_grade.get('correct', 'parse_failed')}")
             answer = f"QUESTION: {item['query']}\nSTUDENT ANSWER: {item['llm_answer']}"
             relevance_grade = relevance_llm.invoke([{"role": "system", "content": relevance_instructions}, {"role": "user", "content": answer}])
-            print(f"Answer relevance:     {relevance_grade['relevant']}")
+            print(f"Answer relevance:     {relevance_grade.get('relevant', 'parse_failed')}")
             doc_string = "\n\n".join(doc["text_preview"] for doc in item["retrieved_context"])
             answer = f"FACTS: {doc_string}\nSTUDENT ANSWER: {item['llm_answer']}"
             grounded_grade = grounded_llm.invoke([{"role": "system", "content": grounded_instructions}, {"role": "user", "content": answer}])
-            print(f"Groundedness:         {grounded_grade['grounded']}")
+            print(f"Groundedness:         {grounded_grade.get('grounded', 'parse_failed')}")
             answer = f"FACTS: {doc_string}\nQUESTION: {item['query']}"
             retrieval_grade = retrieval_relevance_llm.invoke([{"role": "system", "content": retrieval_relevance_instructions}, {"role": "user", "content": answer}])
-            print(f"Retrieval relevance:  {retrieval_grade['relevant']}")
+            print(f"Retrieval relevance:  {retrieval_grade.get('relevant', 'parse_failed')}")
             writer.writerow({
                 "query_id":                        item.get("query_id", ""),
                 "query":                           item["query"],
                 "ground_truth_answer":             item["ground_truth_answer"],
                 "llm_answer":                      item["llm_answer"],
-                "correctness":                     int(correctness_grade["correct"]),
-                "correctness_explanation":         correctness_grade["explanation"],
-                "answer_relevance":                int(relevance_grade["relevant"]),
-                "answer_relevance_explanation":    relevance_grade["explanation"],
-                "groundedness":                    int(grounded_grade["grounded"]),
-                "groundedness_explanation":        grounded_grade["explanation"],
-                "retrieval_relevance":             int(retrieval_grade["relevant"]),
-                "retrieval_relevance_explanation": retrieval_grade["explanation"],
+                "correctness":                     int(bool(correctness_grade.get("correct", False))),
+                "correctness_explanation":         correctness_grade.get("explanation", "parse_failed"),
+                "answer_relevance":                int(bool(relevance_grade.get("relevant", False))),
+                "answer_relevance_explanation":    relevance_grade.get("explanation", "parse_failed"),
+                "groundedness":                    int(bool(grounded_grade.get("grounded", False))),
+                "groundedness_explanation":        grounded_grade.get("explanation", "parse_failed"),
+                "retrieval_relevance":             int(bool(retrieval_grade.get("relevant", False))),
+                "retrieval_relevance_explanation": retrieval_grade.get("explanation", "parse_failed"),
             })
             csvfile.flush()
     print(f"\nResults saved to: {csv_path}")
 
 if __name__ == "__main__":
-    filename = "/home/sarthak/workspace/gen_ai/RAG/project/projects/professional_projects/project1/backend/logs/eval/detailed_results_20260421_002351_hyb_norerank.json"
+    filename = "/home/sarthak/workspace/gen_ai/RAG/project/projects/professional_projects/project1/backend/logs/eval/detailed_results_20260423_232241.json"
     main(filename)

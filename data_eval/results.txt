@@ -1,0 +1,46 @@
+
+"logs/eval/detailed_results_20260423_232241.json"
+=================================================================
+RAGAS EVALUATION SUMMARY
+=================================================================
+  Model: gemma4:latest
+  Samples: 100
+  Total time: 3805.4s  (38.1s per sample)
+
+  context_precision      [████████████        ]  0.603  ~ moderate
+  context_recall         [████████████        ]  0.591  ~ moderate
+  faithfulness           [████████████        ]  0.607  ~ moderate
+  answer_relevancy       [██████████          ]  0.503  ~ moderate
+  answer_correctness     [████████            ]  0.411  ~ moderate
+
+  Results saved: logs/eval/ragas_results_20260428_191055.csv
+
+
+
+
+"logs/eval/detailed_results_20260423_212926_hyb.json"
+  =================================================================
+RAGAS EVALUATION SUMMARY
+=================================================================
+  Model: gemma4:latest
+  Samples: 100
+  Total time: 3916.5s  (39.2s per sample)
+
+  context_precision      [█████████████       ]  0.651  ~ moderate
+  context_recall         [████████████        ]  0.605  ~ moderate
+  faithfulness           [█████████████       ]  0.648  ~ moderate
+  answer_relevancy       [███████████         ]  0.547  ~ moderate
+  answer_correctness     [█████████           ]  0.431  ~ moderate
+
+  Results saved: logs/eval/ragas_results_20260428_201752.csv
+
+
+
+
+ "logs/eval/detailed_results_20260423_183352_hyb_rerank.json"
+
+    context_precision      [███████████████     ]  0.753  ✓ good
+  context_recall         [█████████████       ]  0.635  ~ moderate
+  faithfulness           [██████████████      ]  0.686  ~ moderate
+  answer_relevancy       [████████████        ]  0.612  ~ moderate
+  answer_correctness     [██████████          ]  0.478  ~ moderate

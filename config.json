@@ -1,6 +1,6 @@
 {
   "ingestion": {
-    "loader": "pymupdf4llm",           
+    "loader": "pymupdf4llm",
     "pdf_dir": "data/raw/pdfs",
     "max_pdfs": 1000,
     "log_dir": "logs",
@@ -12,14 +12,14 @@
     "chunk_overlap": 100
   },
   "embeddings": {
-      "model_name": "nomic-embed-text",
-      "base_url": "http://localhost:11434",
-      "batch_size": 32
+    "model_name": "nomic-embed-text",
+    "base_url": "http://localhost:11434",
+    "batch_size": 32
   },
   "retrieval": {
     "top_k": 5,
     "collection_name": "rag_chunks",
-    "use_hybrid": false,
+    "use_hybrid": true,
     "bm25_index_path": "data/vector_store/bm25_index.pkl",
     "use_rerank": false,
     "rerank_model": "BAAI/bge-reranker-v2-m3",
@@ -27,9 +27,9 @@
     "candidate_k": 20
   },
   "vector_store": {
-      "persist_dir": "data/vector_store/first",
-      "collection_name": "rag_documents",
-      "batch_size": 100
+    "persist_dir": "data/vector_store/first",
+    "collection_name": "rag_documents",
+    "batch_size": 100
   },
   "llm": {
     "model_name": "gemma4:latest",
@@ -38,11 +38,23 @@
     "max_tokens": 1024
   },
   "evaluation": {
-      "allowed_sources": ["text"],
-      "eval_model": "gemma4:latest",
-      "meta_dir":    "data/raw/metadata/pdf/arxiv",
-      "metrics_dir": "logs/eval",
-      "qrels_path":  "data/raw/metadata/pdf/arxiv/qrels.json",
-      "answers_path": "data/raw/metadata/pdf/arxiv/answers.json"
+    "allowed_sources": [
+      "text"
+    ],
+    "eval_limit": 500,
+    "eval_model": "gemma4:latest",
+    "meta_dir": "data/raw/metadata/pdf/arxiv",
+    "metrics_dir": "logs/eval",
+    "qrels_path": "data/raw/metadata/pdf/arxiv/qrels.json",
+    "answers_path": "data/raw/metadata/pdf/arxiv/answers.json"
+  },
+  "agentic": {
+    "use_hyde": true,
+    "use_query_rewriting": true,
+    "num_rewrites": 2,
+    "max_workers": 4,
+    "candidate_k": 20,
+    "final_top_k": 5,
+    "max_retries": 2
   }
 }
