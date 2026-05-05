@@ -172,5 +172,5 @@ def main(filename: str):
     print(f"\nResults saved to: {csv_path}")
 
 if __name__ == "__main__":
-    filename = "/home/sarthak/workspace/gen_ai/RAG/project/projects/professional_projects/project1/backend/logs/eval/detailed_results_20260423_232241.json"
+    filename = "/home/sarthak/workspace/gen_ai/RAG/project/projects/professional_projects/project1/backend/logs/eval/detailed_results_agentic_20260505_002040_agentic.json"
     main(filename)

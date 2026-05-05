@@ -44,3 +44,26 @@ RAGAS EVALUATION SUMMARY
   faithfulness           [██████████████      ]  0.686  ~ moderate
   answer_relevancy       [████████████        ]  0.612  ~ moderate
   answer_correctness     [██████████          ]  0.478  ~ moderate
+
+
+
+
+
+
+
+
+"/home/sarthak/workspace/gen_ai/RAG/project/projects/professional_projects/project1/backend/logs/eval/detailed_results_agentic_20260505_002040_agentic.json"
+  =================================================================
+RAGAS EVALUATION SUMMARY
+=================================================================
+  Model: gemma4:latest
+  Samples: 100
+  Total time: 3728.5s  (37.3s per sample)
+
+  context_precision      [████████████████    ]  0.794  ✓ good
+  context_recall         [████████████        ]  0.615  ~ moderate
+  faithfulness           [█████████████████   ]  0.864  ✓ good
+  answer_relevancy       [████████████        ]  0.588  ~ moderate
+  answer_correctness     [██████████          ]  0.483  ~ moderate
+
+  Results saved: logs/eval/ragas_results_20260505_235718.csv

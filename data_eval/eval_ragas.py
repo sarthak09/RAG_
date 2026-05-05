@@ -220,5 +220,6 @@ def main(filename: str, limit: int = 5):
     print()
 
 if __name__ == "__main__":
-    filename = "logs/eval/detailed_results_20260423_183352_hyb_rerank.json"
+    filename = "logs/eval/detailed_results_agentic_20260505_002040_agentic.json"
     main(filename, limit=100)
+    
