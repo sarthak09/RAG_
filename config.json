@@ -7,27 +7,30 @@
     "stats_dir": "logs"
   },
   "chunking": {
-    "strategy": "section",
+    "strategy": "semantic",
     "chunk_size": 512,
-    "chunk_overlap": 100
+    "chunk_overlap": 100,
+    "breakpoint_threshold_type": "percentile",
+    "breakpoint_threshold_amount": 95
   },
   "embeddings": {
-    "model_name": "nomic-embed-text",
+    "model_name": "nomic-embed-text:v1.5",
     "base_url": "http://localhost:11434",
-    "batch_size": 32
+    "batch_size": 32,
+    "num_ctx": 8192
   },
   "retrieval": {
     "top_k": 5,
     "collection_name": "rag_chunks",
     "use_hybrid": true,
-    "bm25_index_path": "data/vector_store/bm25_index.pkl",
-    "use_rerank": false,
+    "bm25_index_path": "data/vector_store/semantic/bm25_index.pkl",
+    "use_rerank": true,
     "rerank_model": "BAAI/bge-reranker-v2-m3",
     "rerank_top_k": 5,
     "candidate_k": 20
   },
   "vector_store": {
-    "persist_dir": "data/vector_store/first",
+    "persist_dir": "data/vector_store/semantic",
     "collection_name": "rag_documents",
     "batch_size": 100
   },
@@ -56,5 +59,15 @@
     "candidate_k": 20,
     "final_top_k": 5,
     "max_retries": 2
+  },
+  "pageindex": {
+    "model": "qwen2.5-ctx:latest",
+    "num_ctx": 16384,
+    "max_tokens_per_group": 4000,
+    "pdf_dir": "data/raw/pdfs",
+    "max_pdfs": 40,
+    "output_dir": "data/pageindex",
+    "log_dir": "logs/ingest",
+    "pageindex_repo": "pageIndex/PageIndex"
   }
 }
